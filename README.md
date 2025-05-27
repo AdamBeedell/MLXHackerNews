@@ -1,2 +1,2 @@
 # MLXHacknerNews
-Course week 1, predictor for hackernews post popularity
+Week 1 coursework - predictor for hackernews post popularity
