@@ -89,15 +89,8 @@ def main():
 
     # Model, loss, optimizer
     model = CBOW(len(vocab), EMBEDDING_DIM).to(device)
-
-    print(len(vocab))
-
     loss_fn = nn.NLLLoss()
     optimizer = optim.SGD(model.parameters(), lr=0.01)
-
-    print(sum(1 for e in loader))
-
-    exit(1)
 
     # Run epochs
     for epoch in range(1, EPOCHS+1):
