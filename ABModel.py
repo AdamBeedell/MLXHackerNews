@@ -22,6 +22,8 @@ else:
 ### hyperparameters
 windowsize = 2  # words either side of the target word
 windowsize = windowsize * 2 + 1 
+split_ratio = 0.8  # 80% for training, 20% for testing
+embed_dim = 111
 
 
 ### Goal - Import text8
@@ -43,6 +45,7 @@ text8.append('<unk>')  # Add an unknown token to the vocabulary
 ### tokenize text8
 
 vocablist = set(text8)  ## deduping, not sure this is required
+vocabsize = len(vocablist)  # Number of unique words in the vocabulary
 word2idx = {w: i for i, w in enumerate(sorted(vocablist))} ## i sets an index, w is the word
 
 unk_idx = word2idx['<unk>']  # Index for the unknown token
@@ -52,21 +55,24 @@ windows = list(zip(*[iter(text8)]*windowsize))  # Group words into batches of si
 
 #3401041
 
-train_dataset = windows[:len(windows)*0.8]  # 80% for training
-test_dataset = windows[len(windows)*0.8:]  # 20% for testing
+split = int(len(windows) * split_ratio)  # Split the dataset into training and testing sets
+train_windows = windows[:split]
+test_windows = windows[split:]
+
+
 #train_dataset = text8[:len(text8)*0.8]  # 80% for training
 #test_dataset = text8[len(text8)*0.8:]  # 20% for testing
 
-def train_generator(windows, word2idx, unk_idx):
-    """Generator function to yield context and target pairs for training."""
-    for w1, w2, w3, w4, w5 in windows:
-        ctx = [word2idx.get(w, unk_idx) for w in (w1, w2, w4, w5)]
-        tgt = word2idx.get(w3, unk_idx)
-        yield torch.tensor(ctx), tgt
+#def train_generator(windows, word2idx, unk_idx):
+#    """Generator function to yield context and target pairs for training."""
+#    for w1, w2, w3, w4, w5 in windows:
+#        ctx = [word2idx.get(w, unk_idx) for w in (w1, w2, w4, w5)]
+#        yield torch.tensor(ctx), tgt
+#        tgt = word2idx.get(w3, unk_idx)
     
 
-traintensors = train_generator(train_dataset, word2idx, unk_idx)
-testtensors = train_generator(test_dataset, word2idx, unk_idx)
+#traintensors = train_generator(train_dataset, word2idx, unk_idx)
+#testtensors = train_generator(test_dataset, word2idx, unk_idx)
 
 
 
@@ -83,8 +89,8 @@ class MaskedCBOWDataset(torch.utils.data.IterableDataset):
             yield torch.tensor(ctx), tgt
 
 
-train_dataset = MaskedCBOWDataset(train_windows, word2idx, unk_idx)
-train_loader = DataLoader(train_dataset, batch_size=128)
+#train_dataset = MaskedCBOWDataset(train_windows, word2idx, unk_idx)
+#train_loader = DataLoader(train_dataset, batch_size=128)
 
 # Example usage of the generator
 
@@ -97,47 +103,58 @@ train_loader = DataLoader(train_dataset, batch_size=128)
 ### create model architecture
 
 # Create DataLoaders
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=64, shuffle=True)
-test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=64, shuffle=False)
+train_loader = torch.utils.data.DataLoader(
+    MaskedCBOWDataset(train_windows, word2idx, unk_idx),
+    batch_size=64,
+    #shuffle=True
+)
+test_loader = torch.utils.data.DataLoader(
+    MaskedCBOWDataset(test_windows, word2idx, unk_idx),
+    batch_size=64,
+    #shuffle=False
+)
+#print(f"Train samples: {len(train_dataset)}, Test samples: {len(test_dataset)}")
 
-print(f"Train samples: {len(train_dataset)}, Test samples: {len(test_dataset)}")
+for i, (context, target) in enumerate(train_loader):
+    print(f"Batch {i}:")
+    print(f"  Context shape: {context.shape}")  # expect [batch_size, 4]
+    print(f"  Target shape:  {target.shape}")   # expect [batch_size]
+    print(f"  First row:     {context[0].tolist()} → {target[0].item()}")
+    if i == 2: break  # only show a few batches
 
+
+### create model
 
 class word2vec(NN.Module):   ### This creates a class for our specific NN, inheriting from the pytorch equivalent
     def __init__(self):  
         super().__init__()  ## super goes up one level to the torch NN module, and initializes the net
-        self.fc1 = NN.Linear(28 * 28, 256)  # First hidden layer (784 pixel slots, gradually reducing down)
-        self.fc2 = NN.Linear(256, 128)  # half as many nodes
-        self.fc3 = NN.Linear(128, 64)   # half as many nodes
-        self.fc4 = NN.Linear(64, 10) # Output layer (64 -> 10, one for each valid prediction)
+        self.emb = NN.Embedding(vocabsize, embed_dim)  # 111 to be different
+        self.out = NN.Linear(embed_dim, vocabsize)     # predict vocab word from averaged context
+    def forward(self, x):  # x: [batch, 4]
+        x = self.emb(x)           # → [batch, 4, embed_dim]
+        x = x.mean(dim=1)         # → [batch, embed_dim]  ← averaging context vectors
+        x = F.relu(x)             # optional, but can help
+        x = self.out(x)           # → [batch, vocab_size]
+        return x                  # raw logits
 
-    def forward(self, x):  # feed forward
-        x = x.view(-1, 28 * 28)  # Flatten input from (batch, 1, 28, 28) -> (batch, 784), applies to the tensor prepared above in the dataloader
-        x = F.relu(self.fc1(x))  # Activation function (ReLU), no negatives, play with leaky ReLU later
-        x = F.relu(self.fc2(x))
-        x = F.relu(self.fc3(x))
-        x = self.fc4(x)  # No activation here, end of the road ("cross-entropy expects raw logits" - which are produced here, the logits will be converted to probabilities later by the cross-entropy function during training and softmax during training and inference)
-        return x
-    
 loss_function = NN.CrossEntropyLoss()  # using built-in loss function
-
-
-model = word2vec() ##create the model as described abvoe
-
+model = word2vec().to(device) ##create the model as described above
 optimizer = optim.Adam(model.parameters(), lr=0.001) ### lr = learning rate, 0.001 is apparently a "normal" value. Adam is the optimizer chosen, also fairly default
-
 
 
 ##### do training
 
-num_epochs = 30 ## passes through the dataset
+num_epochs = 1 ## passes through the dataset
 
 for epoch in range(num_epochs):
-    for images, lables in train_loader: #note uses batches defined earlier
+    for context, target in train_loader: #note uses batches defined earlier
+        
+        context = context.to(device)  # move data to the selected device
+        target = target.to(device)    # move data to the selected device
         optimizer.zero_grad() ### reset gradients each time
 
-        outputs = model(images) # forward pass
-        loss = loss_function(outputs, lables)
+        outputs = model(context) # forward pass
+        loss = loss_function(outputs, target)
 
         loss.backward() ## backprop method created by pytorch crossentropyloss function, very convenient
         optimizer.step()
