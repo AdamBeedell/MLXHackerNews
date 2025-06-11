@@ -1,8 +1,5 @@
 env.txt
 
-
-
-
 #### github boilerplate below
 
 # Byte-compiled / optimized / DLL files
@@ -179,3 +176,5 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+saved_model.pytorch
