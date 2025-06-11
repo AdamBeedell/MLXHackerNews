@@ -165,6 +165,12 @@ for epoch in range(num_epochs):
 
 
 
+### output weights
+
+torch.save(model.state_dict(), "ABembeddingsweights.pth")
+torch.save(model, "ABembeddingsfullmodel.pth")
+
+
 ### / training
 
 
