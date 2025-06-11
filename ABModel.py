@@ -13,7 +13,9 @@ import torch.optim as optim
 from collections import deque
 import itertools
 
-if torch.backends.mps.is_available() and torch.backends.mps.is_built():
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+elif torch.backends.mps.is_available():
     device = torch.device("mps")
 else:
     device = torch.device("cpu")
