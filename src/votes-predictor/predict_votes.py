@@ -82,16 +82,11 @@ def process_text_for_embeddings(text, model, word2idx, unk_idx, device, aggregat
   
 def fetch_hacker_news_data(limit = 10000, offset = 0, include_comments = False):
     return [post for post in fetch_hacker_news_info(limit, offset, include_comments)]
-
 class HackerNewsIterableDataset(IterableDataset):
-    def __init__(self, 
-                 fetch_fn,        # e.g. fetch_hacker_news_info
-                 batch_size=128,  # how many DB rows to pull at once
+    def __init__(self, fetch_fn, batch_size=128,
                  include_comments=False,
-                 cbow_model=None,
-                 word2idx=None,
-                 unk_idx=None,
-                 device=None):
+                 cbow_model=None, word2idx=None, unk_idx=None, device=None,
+                 start=0, end=None):
         self.fetch_fn = fetch_fn
         self.batch_size = batch_size
         self.include_comments = include_comments
@@ -99,36 +94,32 @@ class HackerNewsIterableDataset(IterableDataset):
         self.w2i    = word2idx
         self.unk    = unk_idx
         self.device = device
+        self.start  = start
+        self.end    = end
 
     def __iter__(self):
-        offset = 0
+        offset = self.start
+        yielded = 0
         while True:
-            # fetch a “page” of raw items
             raw_batch = self.fetch_fn(limit=self.batch_size,
                                       offset=offset,
                                       include_comments=self.include_comments)
             if not raw_batch:
-                return                   # no more data → stop iteration
-
+                return
             for item in raw_batch:
-                # process title → embedding
+                if self.end is not None and yielded >= (self.end - self.start):
+                    return
                 emb = process_text_for_embeddings(
-                    item.title,
-                    self.cbow,
-                    self.w2i,
-                    self.unk,
-                    self.device,
-                    aggregation_method='mean'
+                    item.title, self.cbow, self.w2i, self.unk,
+                    self.device, aggregation_method='mean'
                 )
-                # (optionally process comments here, same pattern)
                 yield emb.to(self.device), torch.tensor([item.score], dtype=torch.float32).to(self.device)
-
+                yielded += 1
             offset += self.batch_size
 
     def __len__(self):
         return fetch_hackernews_length()
 
-# === Regression Model (Feedforward Neural Network) ===
 class UpvotePredictor(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim=1):
         super().__init__()
