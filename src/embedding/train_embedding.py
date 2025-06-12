@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import IterableDataset, DataLoader, get_worker_info
+import wandb
 
 from cbow_text8_dataset import CBOWText8Dataset
 from cbow_model import CBOW
@@ -19,6 +20,7 @@ CONTEXT_SIZE  = 2            # 2 left + 2 right = 5-word window
 BATCH_SIZE = 128
 EPOCHS = 5
 NUM_WORKERS = 4
+LEARNING_RATE = 0.01
 
 # === Device setup (use MPS on Apple Silicon if possible) ===
 device = get_device()
@@ -39,15 +41,33 @@ def main():
         collate_fn=collate
     )
 
+        # Start a new wandb run to track this script.
+    run = wandb.init(
+        # Set the wandb entity where your project will be logged (generally your team name).
+        entity="attp-ml-institute",
+        # Set the wandb project where this run will be logged.
+        project="cbow-word2vec",
+        # Track hyperparameters and run metadata.
+        config={
+            "learning_rate": LEARNING_RATE,
+            "architecture": "CBOW",
+            "dataset": "text8",
+            "epochs": EPOCHS,
+        },
+    )
+
     # Model, loss, optimizer
     model = CBOW(vocab_len, EMBEDDING_DIM).to(device)
+
+    # log the model
+    wandb.watch(model, log="all", log_freq=100)
 
     # might speed things up
     if (device == 'cuda'):
         model = torch.compile(model, fullgraph=True)
 
     loss_fn = nn.NLLLoss().to(device)
-    optimizer = optim.SGD(model.parameters(), lr=0.01)
+    optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE)
 
     # Run epochs
     for epoch in range(1, EPOCHS+1):
@@ -67,11 +87,21 @@ def main():
             loss = loss_fn(log_probs, targets)
             loss.backward()
             optimizer.step()
+            total_loss += loss.item()
 
         print(f"Epoch {epoch}/{EPOCHS}  Loss: {total_loss:.2f}")
 
-    torch.save(model.state_dict(), 'saved_model.pytorch')
+    # 8. Save model weights locally
+    model_path = "cbow-word2vec-model.pth"
+    torch.save(model.state_dict(), model_path)
 
+    artifact = wandb.Artifact(
+        name="cbow-word2vec",
+        type="model",
+        description="CBOW Word2Vec algorithm trained on "
+    )
+    artifact.add_file(model_path)
+    wandb.log_artifact(artifact)
 
 if __name__ == "__main__":
     main()

@@ -178,3 +178,5 @@ cython_debug/
 .pypirc
 
 saved_model.pytorch
+*.pth
+wandb/
