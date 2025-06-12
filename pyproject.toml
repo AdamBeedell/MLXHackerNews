@@ -1,19 +1,19 @@
 [project]
-name = "mlxhackernews"
+name = "predict-hacker-news-upvotes"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "huggingface-hub>=0.33.0",
     "matplotlib>=3.10.3",
-    "numpy>=2.3.0",
-    "pandas>=2.3.0",
-    "psycopg2-binary>=2.9.10",
-    "python-dotenv>=1.1.0",
-    "requests>=2.32.4",
-    "seaborn>=0.13.2",
-    "streamlit>=1.45.1",
+    "scikit-learn>=1.7.0",
     "torch>=2.7.1",
-    "urllib",
+    "torchvision>=0.22.1",
+    "tqdm>=4.67.1",
+    "pandas>=1.5.3",
+    "numpy>=1.24.0",
+    "seaborn>=0.12.0",
+    "sqlalchemy>=2.0.0",
+    "psycopg2-binary>=2.9.6",
+    "wandb>=0.15.0",
 ]
