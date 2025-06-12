@@ -42,6 +42,6 @@ def fetch_hackernews_length():
   connection = engine.connect()
   result = connection.execute(query).scalar_one()
   connection.close()
-  return result.count
+  return result
 
 

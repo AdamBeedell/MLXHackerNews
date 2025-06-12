@@ -125,6 +125,9 @@ class HackerNewsIterableDataset(IterableDataset):
 
             offset += self.batch_size
 
+    def __getitem__(self, index):
+        return super().__getitem__(index)
+
     def __len__(self):
         return fetch_hackernews_length()
 
