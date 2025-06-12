@@ -1,5 +1,7 @@
 from operator import itemgetter
 import re
+import multiprocessing as mp
+
 import numpy as np
 from torch.utils.data import IterableDataset, DataLoader
 import torch
@@ -154,9 +156,10 @@ def train_predictor(model, dataloader, loss_fn, optimizer, epochs, device):
         print(f"Predictor Epoch {epoch+1} Loss: {total_loss / len(dataloader):.4f}")
 
 def main():
+    
     print("Fetching Hacker News data...")
     # Create the regression dataset
-    full_len   = len(HackerNewsIterableDataset(fetch_hacker_news_data, batch_size=BATCH_SIZE, 
+    full_len = len(HackerNewsIterableDataset(fetch_hacker_news_data, batch_size=BATCH_SIZE, 
                                             include_comments=False,
                                             cbow_model=cbow_model, word2idx=word2idx,
                                             unk_idx=unk_idx, device=device))
@@ -238,4 +241,5 @@ def main():
 
 
 if __name__ == "__main__":
+    mp.set_start_method("spawn", force=True)
     main()
