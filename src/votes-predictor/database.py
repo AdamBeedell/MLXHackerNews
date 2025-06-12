@@ -12,7 +12,7 @@ def fetch_hacker_news_info(limit=10000, offset=0, include_comments=True):
       i.title AS title,
       i.score AS score,
       i.time AS time
-    FROM hacker_news.items i
+    FROM hacker_news.items_by_year_2024 i
     WHERE 
       i.score IS NOT NULL AND
       i.title IS NOT NULL AND
