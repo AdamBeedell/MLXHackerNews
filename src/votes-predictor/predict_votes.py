@@ -15,7 +15,7 @@ from vocab import get_vocab
 
 EMBEDDING_DIM = 100
 CONTEXT_SIZE  = 2 # 2 left + 2 right = 5-word window
-BATCH_SIZE = 128
+BATCH_SIZE = 128000
 EPOCHS = 5
 NUM_WORKERS = 4
 
