@@ -41,8 +41,8 @@ def main():
         collate_fn=collate
     )
 
-        # Start a new wandb run to track this script.
-    run = wandb.init(
+    # Start a new wandb run to track this script.
+    wandb.init(
         # Set the wandb entity where your project will be logged (generally your team name).
         entity="attp-ml-institute",
         # Set the wandb project where this run will be logged.

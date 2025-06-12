@@ -1,14 +1,14 @@
 from operator import itemgetter
 import re
 import numpy as np
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import IterableDataset, DataLoader
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
 
 from embedding.cbow_model import CBOW
-from database import fetch_hacker_news_info
+from database import fetch_hacker_news_info, fetch_hackernews_length
 from vocab import get_vocab
 
 EMBEDDING_DIM = 100
@@ -26,7 +26,7 @@ else:
     device = torch.device("cpu")
 
 cbow_model = CBOW(vocab_len, EMBEDDING_DIM).to(device)
-cbow_model.load_state_dict(torch.load('saved_model.pytorch'))
+cbow_model.load_state_dict(torch.load('cbow-word2vec-model.pth'))
 cbow_model.eval()
 
 # Function to get word embeddings
@@ -83,45 +83,50 @@ def process_text_for_embeddings(text, model, word2idx, unk_idx, device, aggregat
 def fetch_hacker_news_data(limit = 10000, offset = 0, include_comments = False):
     return [post for post in fetch_hacker_news_info(limit, offset, include_comments)]
 
-# === Dataset Class for Regression ===
-class HackerNewsRegressionDataset(Dataset):
-    def __init__(self, data, cbow_model, word2idx, unk_idx, device):
-        self.features = []
-        self.labels = []
-        
-        print("Processing Hacker News data for regression features...")
-        for item in tqdm(data):
-            all_embeddings = []
-            all_embeddings.append(process_text_for_embeddings(
-              item.title, cbow_model, word2idx, unk_idx, device, aggregation_method='mean'
-            ))
+class HackerNewsIterableDataset(IterableDataset):
+    def __init__(self, 
+                 fetch_fn,        # e.g. fetch_hacker_news_info
+                 batch_size=128,  # how many DB rows to pull at once
+                 include_comments=False,
+                 cbow_model=None,
+                 word2idx=None,
+                 unk_idx=None,
+                 device=None):
+        self.fetch_fn = fetch_fn
+        self.batch_size = batch_size
+        self.include_comments = include_comments
+        self.cbow   = cbow_model
+        self.w2i    = word2idx
+        self.unk    = unk_idx
+        self.device = device
 
-            # for comment_text in item['comments']:
-            #     comment_embedding = process_text_for_embeddings(
-            #         comment_text, cbow_model, word2idx, unk_idx, device, aggregation_method='mean'
-            #     )
-            #     all_embeddings.append(comment_embedding.cpu()) # Move to CPU for dataset storage if device is MPS/CUDA
+    def __iter__(self):
+        offset = 0
+        while True:
+            # fetch a “page” of raw items
+            raw_batch = self.fetch_fn(limit=self.batch_size,
+                                      offset=offset,
+                                      include_comments=self.include_comments)
+            if not raw_batch:
+                return                   # no more data → stop iteration
 
-            if all_embeddings:
-                # Aggregate all comment embeddings for an article
-                article_feature = torch.stack(all_embeddings).mean(dim=0)
-            else:
-                # Handle articles with no comments (e.g., zero vector)
-                article_feature = torch.zeros(EMBEDDING_DIM) 
-            
-            self.features.append(article_feature)
-            self.labels.append(item.score)
-        
-        self.features = torch.stack(self.features).to(device)
-        self.labels = torch.tensor(self.labels, dtype=torch.float32).to(device)
-        # Reshape labels for regression (batch_size, 1)
-        self.labels = self.labels.unsqueeze(1) 
+            for item in raw_batch:
+                # process title → embedding
+                emb = process_text_for_embeddings(
+                    item.title,
+                    self.cbow,
+                    self.w2i,
+                    self.unk,
+                    self.device,
+                    aggregation_method='mean'
+                )
+                # (optionally process comments here, same pattern)
+                yield emb.to(self.device), torch.tensor([item.score], dtype=torch.float32).to(self.device)
+
+            offset += self.batch_size
 
     def __len__(self):
-        return len(self.labels)
-
-    def __getitem__(self, idx):
-        return self.features[idx], self.labels[idx]
+        return fetch_hackernews_length()
 
 # === Regression Model (Feedforward Neural Network) ===
 class UpvotePredictor(nn.Module):
@@ -159,11 +164,10 @@ def train_predictor(model, dataloader, loss_fn, optimizer, epochs, device):
 
 def main():
     print("Fetching Hacker News data...")
-    hn_data = fetch_hacker_news_data()
     
     # Create the regression dataset
-    regression_dataset = HackerNewsRegressionDataset(
-        hn_data, cbow_model, word2idx, unk_idx, device
+    regression_dataset = HackerNewsIterableDataset(
+        fetch_hacker_news_data, cbow_model, word2idx, unk_idx, device
     )
     
     # Split into training and validation sets (simple split for demo)
