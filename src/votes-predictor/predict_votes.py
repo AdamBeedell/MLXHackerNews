@@ -125,9 +125,6 @@ class HackerNewsIterableDataset(IterableDataset):
 
             offset += self.batch_size
 
-    def __getitem__(self, index):
-        return super().__getitem__(index)
-
     def __len__(self):
         return fetch_hackernews_length()
 
@@ -167,19 +164,27 @@ def train_predictor(model, dataloader, loss_fn, optimizer, epochs, device):
 
 def main():
     print("Fetching Hacker News data...")
-    
     # Create the regression dataset
-    regression_dataset = HackerNewsIterableDataset(
-        fetch_hacker_news_data, cbow_model, word2idx, unk_idx, device
+    full_len   = len(HackerNewsIterableDataset(fetch_hacker_news_data, batch_size=BATCH_SIZE, 
+                                            include_comments=False,
+                                            cbow_model=cbow_model, word2idx=word2idx,
+                                            unk_idx=unk_idx, device=device))
+    train_len  = int(0.8 * full_len)
+    train_ds = HackerNewsIterableDataset(
+        fetch_hacker_news_data, batch_size=BATCH_SIZE,
+        include_comments=False,
+        cbow_model=cbow_model, word2idx=word2idx, unk_idx=unk_idx, device=device,
+        start=0, end=train_len
     )
-    
-    # Split into training and validation sets (simple split for demo)
-    train_size = int(0.8 * len(regression_dataset))
-    val_size = len(regression_dataset) - train_size
-    train_dataset, val_dataset = torch.utils.data.random_split(regression_dataset, [train_size, val_size])
+    val_ds   = HackerNewsIterableDataset(
+        fetch_hacker_news_data, batch_size=BATCH_SIZE,
+        include_comments=False,
+        cbow_model=cbow_model, word2idx=word2idx, unk_idx=unk_idx, device=device,
+        start=train_len, end=full_len
+    )
 
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+    train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS)
+    val_loader   = DataLoader(val_ds,   batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS)
 
     # --- Part 3: Train the Upvote Predictor Model ---
     INPUT_DIM = EMBEDDING_DIM # The size of the aggregated comment embedding
@@ -222,17 +227,10 @@ def main():
     ]
 
     for i, post in enumerate(new_post):
-        # Aggregate comment embeddings for the new article
         new_article_all_embeddings = []
         new_article_all_embeddings.append(process_text_for_embeddings(
             post.get("title"), cbow_model, word2idx, unk_idx, device, aggregation_method='mean'
         ))
-
-        # for post_title in post:
-        #     article_embedding = process_text_for_embeddings(
-        #         post_title.title, cbow_model, word2idx, unk_idx, device, aggregation_method='mean'
-        #     )
-        #     new_article_all_embeddings.append(article_embedding)
         
         if new_article_all_embeddings:
             new_article_feature = torch.stack(new_article_all_embeddings).mean(dim=0).unsqueeze(0).to(device)
@@ -243,6 +241,9 @@ def main():
             predicted_upvotes = predictor_model(new_article_feature).item()
         
         print(f"Article {i+1} \"{post.get("title")}\" Predicted Upvotes = {predicted_upvotes:.2f}")
+    
+    model_path = "hn-predictor-model.pth"
+    torch.save(predictor_model.state_dict(), model_path)
 
 
 if __name__ == "__main__":

@@ -62,10 +62,6 @@ def main():
     # log the model
     wandb.watch(model, log="all", log_freq=100)
 
-    # might speed things up
-    if (device == 'cuda'):
-        model = torch.compile(model, fullgraph=True)
-
     loss_fn = nn.NLLLoss().to(device)
     optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE)
 
