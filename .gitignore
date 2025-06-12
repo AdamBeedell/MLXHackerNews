@@ -1,6 +1,10 @@
 env.txt
 data.csv.bz2
 wikipedia_data.txt.bz2
+Charts/
+data.csv
+text8.txt
+
 
 
 #### github boilerplate below
