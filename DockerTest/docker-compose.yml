@@ -1,0 +1,14 @@
+services:
+  api:
+    build: .
+    command: uv run -m uvicorn ABApi:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    #restart: unless-stopped
+
+  frontend:
+    build: .
+    command: uv run streamlit run ABFrontend.py --server.address 0.0.0.0 --server.port 8501
+    ports:
+      - "8501:8501"
+    restart: unless-stopped

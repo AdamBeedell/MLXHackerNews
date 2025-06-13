@@ -1,0 +1,22 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY . .
+
+# Install uv
+RUN pip install --no-cache-dir uv && uv sync
+
+# Make uv available to subsequent RUN steps
+ENV PATH="/root/.cargo/bin:$PATH"
+
+# Verify it works (optional debug line)
+RUN uv --version
+
+
+# Expose ports
+EXPOSE 8000
+EXPOSE 8501
+
+# Start FastAPI and Streamlit together
+CMD ["bash", "-c", "uv run -m uvicorn ABApi:app --host 0.0.0.0 --port 8000 & uv run streamlit run streamlit_app.py --server.port 8501 --server.address 0.0.0.0"]
