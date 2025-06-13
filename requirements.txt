@@ -2,3 +2,10 @@ python-dotenv
 psycopg2
 bz2
 csv
+streamlit
+pandas
+numpy
+streamlit
+fastapi
+uvicorn
+pydantic
