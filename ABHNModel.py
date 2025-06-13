@@ -18,11 +18,11 @@ MAX_TITLE_LEN = 20
 
 
 # previous word2vec class
-class word2vec(NN.Module):   ### This creates a class for our specific NN, inheriting from the pytorch equivalent
+class word2vec(nn.Module):   ### This creates a class for our specific NN, inheriting from the pytorch equivalent
     def __init__(self):  
         super().__init__()  ## super goes up one level to the torch NN module, and initializes the net
-        self.emb = NN.Embedding(vocabsize, embed_dim)  # 111 to be different
-        self.out = NN.Linear(embed_dim, vocabsize)     # predict vocab word from averaged context
+        self.emb = nn.Embedding(vocabsize, embed_dim)  # 111 to be different
+        self.out = nn.Linear(embed_dim, vocabsize)     # predict vocab word from averaged context
     def forward(self, x):  # x: [batch, 4]
         x = self.emb(x)           # → [batch, 4, embed_dim]
         x = x.mean(dim=1)         # → [batch, embed_dim]  ← averaging context vectors
