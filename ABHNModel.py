@@ -160,3 +160,6 @@ for epoch in range(num_epochs):
         total_loss += loss.item()
 
     print(f"Epoch {epoch+1}/{num_epochs} - Loss: {total_loss:.4f}")
+
+
+torch.save(model.state_dict(), "ABHNModel.pth")
