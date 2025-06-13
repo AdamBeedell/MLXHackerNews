@@ -137,7 +137,7 @@ model = HackerNewsRegressor(
 )
 
 # === Training Setup ===
-loss_function = NN.MSELoss()
+loss_function = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 num_epochs = 5
 
