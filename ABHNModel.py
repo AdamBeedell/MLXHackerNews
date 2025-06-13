@@ -134,7 +134,8 @@ model = HackerNewsRegressor(
     num_users=len(user2idx),
     num_domains=len(domain2idx),
     embed_dim=EMBED_DIM
-)
+).to(device)  # Move model to device (GPU or CPU)
+
 
 # === Training Setup ===
 loss_function = nn.MSELoss()
