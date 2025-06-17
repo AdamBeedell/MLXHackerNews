@@ -31,16 +31,6 @@ def collate(batch):
     return torch.stack(contexts), torch.tensor(targets, dtype=torch.long)
 
 def main():
-    # Dataset & DataLoader
-    dataset = CBOWText8Dataset(TEXT8_PATH, word2idx, context_size=CONTEXT_SIZE, device=device)
-    loader = DataLoader(
-        dataset,
-        batch_size=BATCH_SIZE,
-        shuffle=False,
-        num_workers=NUM_WORKERS,
-        collate_fn=collate
-    )
-
     # Start a new wandb run to track this script.
     wandb.init(
         # Set the wandb entity where your project will be logged (generally your team name).
@@ -54,6 +44,16 @@ def main():
             "dataset": "text8",
             "epochs": EPOCHS,
         },
+    )
+
+    # Dataset & DataLoader
+    dataset = CBOWText8Dataset(TEXT8_PATH, word2idx, context_size=CONTEXT_SIZE, device=device)
+    loader = DataLoader(
+        dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=False,
+        num_workers=NUM_WORKERS,
+        collate_fn=collate
     )
 
     # Model, loss, optimizer

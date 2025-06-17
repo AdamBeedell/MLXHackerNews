@@ -165,20 +165,30 @@ def main():
                                             unk_idx=unk_idx, device=device))
     train_len  = int(0.8 * full_len)
     train_ds = HackerNewsIterableDataset(
-        fetch_hacker_news_data, batch_size=BATCH_SIZE,
+        fetch_hacker_news_data,
+        batch_size=BATCH_SIZE,
         include_comments=False,
-        cbow_model=cbow_model, word2idx=word2idx, unk_idx=unk_idx, device=device,
-        start=0, end=train_len
+        cbow_model=cbow_model,
+        word2idx=word2idx,
+        unk_idx=unk_idx,
+        device=device,
+        start=0,
+        end=train_len
     )
-    val_ds   = HackerNewsIterableDataset(
-        fetch_hacker_news_data, batch_size=BATCH_SIZE,
+    val_ds = HackerNewsIterableDataset(
+        fetch_hacker_news_data,
+        batch_size=BATCH_SIZE,
         include_comments=False,
-        cbow_model=cbow_model, word2idx=word2idx, unk_idx=unk_idx, device=device,
-        start=train_len, end=full_len
+        cbow_model=cbow_model,
+        word2idx=word2idx, 
+        unk_idx=unk_idx, 
+        device=device,
+        start=train_len,
+        end=full_len
     )
 
     train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS)
-    val_loader   = DataLoader(val_ds,   batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS)
+    val_loader = DataLoader(val_ds,   batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS)
 
     # --- Part 3: Train the Upvote Predictor Model ---
     INPUT_DIM = EMBEDDING_DIM # The size of the aggregated comment embedding
